@@ -84,39 +84,6 @@ public class MainActivity extends Activity implements OnClickListener {
      * Tag used for logging purposes.
      */
     private final String TAG = "TestLibMuseAndroid";
-
-    /**
-     * The MuseManager is how you detect Muse headbands and receive notifications
-     * when the list of available headbands changes.
-     */
-    private MuseManagerAndroid manager;
-
-    /**
-     * A Muse refers to a Muse headband.  Use this to connect/disconnect from the
-     * headband, register listeners to receive EEG data and get headband
-     * configuration and version information.
-     */
-    private Muse muse;
-
-    /**
-     * The ConnectionListener will be notified whenever there is a change in
-     * the connection state of a headband, for example when the headband connects
-     * or disconnects.
-     *
-     * Note that ConnectionListener is an inner class at the bottom of this file
-     * that extends MuseConnectionListener.
-     */
-    private ConnectionListener connectionListener;
-
-    /**
-     * The DataListener is how you will receive EEG (and other) data from the
-     * headband.
-     *
-     * Note that DataListener is an inner class at the bottom of this file
-     * that extends MuseDataListener.
-     */
-    private DataListener dataListener;
-
     /**
      * Data comes in from the headband at a very fast rate; 220Hz, 256Hz or 500Hz,
      * depending on the type of headband and the preset configuration.  We buffer the
@@ -131,12 +98,8 @@ public class MainActivity extends Activity implements OnClickListener {
      * values for EEG and EEG-derived packets.
      */
     private final double[] eegBuffer = new double[6];
-    private boolean eegStale;
     private final double[] alphaBuffer = new double[6];
-    private boolean alphaStale;
     private final double[] accelBuffer = new double[3];
-    private boolean accelStale;
-
     /**
      * We will be updating the UI using a handler instead of in packet handlers because
      * packets come in at a very high frequency and it only makes sense to update the UI
@@ -144,36 +107,111 @@ public class MainActivity extends Activity implements OnClickListener {
      * footprint and makes GC pauses less frequent/noticeable.
      */
     private final Handler handler = new Handler();
-
-    /**
-     * In the UI, the list of Muses you can connect to is displayed in a Spinner object for this example.
-     * This spinner adapter contains the MAC addresses of all of the headbands we have discovered.
-     */
-    private ArrayAdapter<String> spinnerAdapter;
-
-    /**
-     * It is possible to pause the data transmission from the headband.  This boolean tracks whether
-     * or not the data transmission is enabled as we allow the user to pause transmission in the UI.
-     */
-    private boolean dataTransmission = true;
-
     /**
      * To save data to a file, you should use a MuseFileWriter.  The MuseFileWriter knows how to
      * serialize the data packets received from the headband into a compact binary format.
      * To read the file back, you would use a MuseFileReader.
      */
     private final AtomicReference<MuseFileWriter> fileWriter = new AtomicReference<>();
-
     /**
      * We don't want file operations to slow down the UI, so we will defer those file operations
      * to a handler on a separate thread.
      */
     private final AtomicReference<Handler> fileHandler = new AtomicReference<>();
+    /**
+     * We don't want to block the UI thread while we write to a file, so the file
+     * writing is moved to a separate thread.
+     */
+    private final Thread fileThread = new Thread() {
+        @Override
+        public void run() {
+            Looper.prepare();
+            fileHandler.set(new Handler());
+            final File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+            final File file = new File(dir, "new_muse_file.muse" );
+            // MuseFileWriter will append to an existing file.
+            // In this case, we want to start fresh so the file
+            // if it exists.
+            if (file.exists()) {
+                file.delete();
+            }
+            Log.i(TAG, "Writing data to: " + file.getAbsolutePath());
+            fileWriter.set(MuseFileFactory.getMuseFileWriter(file));
+            Looper.loop();
+        }
+    };
+    int tempo = 6;
+    /**
+     * The MuseManager is how you detect Muse headbands and receive notifications
+     * when the list of available headbands changes.
+     */
+    private MuseManagerAndroid manager;
+    /**
+     * A Muse refers to a Muse headband.  Use this to connect/disconnect from the
+     * headband, register listeners to receive EEG data and get headband
+     * configuration and version information.
+     */
+    private Muse muse;
+    /**
+     * The ConnectionListener will be notified whenever there is a change in
+     * the connection state of a headband, for example when the headband connects
+     * or disconnects.
+     *
+     * Note that ConnectionListener is an inner class at the bottom of this file
+     * that extends MuseConnectionListener.
+     */
+    private ConnectionListener connectionListener;
+    /**
+     * The DataListener is how you will receive EEG (and other) data from the
+     * headband.
+     *
+     * Note that DataListener is an inner class at the bottom of this file
+     * that extends MuseDataListener.
+     */
+    private DataListener dataListener;
+    private boolean eegStale;
+    private boolean alphaStale;
+    private boolean accelStale;
+    /**
+     * The runnable that is used to update the UI at 60Hz.
+     *
+     * We update the UI from this Runnable instead of in packet handlers
+     * because packets come in at high frequency -- 220Hz or more for raw EEG
+     * -- and it only makes sense to update the UI at about 60fps. The update
+     * functions do some string allocation, so this reduces our memory
+     * footprint and makes GC pauses less frequent/noticeable.
+     */
+    private final Runnable tickUi = new Runnable() {
+        @Override
+        public void run() {
+            if (eegStale) {
+                updateEeg();
+                //ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 50);
+                //tg.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 50);
+            }
+            if (accelStale) {
+                updateAccel();
+            }
+            if (alphaStale) {
+                updateAlpha();
+            }
+            handler.postDelayed(tickUi, 1000 / tempo);
+        }
+    };
 
 
     //--------------------------------------
     // Lifecycle / Connection code
-
+    /**
+     * In the UI, the list of Muses you can connect to is displayed in a Spinner object for this example.
+     * This spinner adapter contains the MAC addresses of all of the headbands we have discovered.
+     */
+    private ArrayAdapter<String> spinnerAdapter;
+    /**
+     * It is possible to pause the data transmission from the headband.  This boolean tracks whether
+     * or not the data transmission is enabled as we allow the user to pause transmission in the UI.
+     */
+    private boolean dataTransmission = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -213,12 +251,19 @@ public class MainActivity extends Activity implements OnClickListener {
         handler.post(tickUi);
     }
 
+    //--------------------------------------
+    // Permissions
+
     protected void onPause() {
         super.onPause();
         // It is important to call stopListening when the Activity is paused
         // to avoid a resource leak from the LibMuse library.
         manager.stopListening();
     }
+
+
+    //--------------------------------------
+    // Listeners
 
     @Override
     public void onClick(View v) {
@@ -284,11 +329,16 @@ public class MainActivity extends Activity implements OnClickListener {
                 dataTransmission = !dataTransmission;
                 muse.enableDataTransmission(dataTransmission);
             }
+        } else if (v.getId() == R.id.buttonplus) {
+
+            tempo = tempo+1;
+        } else if (v.getId() == R.id.buttonminus) {
+
+            if(tempo>1) {
+                tempo = tempo - 1;
+            }
         }
     }
-
-    //--------------------------------------
-    // Permissions
 
     /**
      * The ACCESS_COARSE_LOCATION permission is required to use the
@@ -331,10 +381,6 @@ public class MainActivity extends Activity implements OnClickListener {
             introDialog.show();
         }
     }
-
-
-    //--------------------------------------
-    // Listeners
 
     /**
      * You will receive a callback to this method each time a headband is discovered.
@@ -441,6 +487,10 @@ public class MainActivity extends Activity implements OnClickListener {
     public void receiveMuseArtifactPacket(final MuseArtifactPacket p, final Muse muse) {
     }
 
+
+    //--------------------------------------
+    // UI Specific methods
+
     /**
      * Helper methods to get different packet values.  These methods simply store the
      * data in the buffers for later display in the UI.
@@ -466,10 +516,6 @@ public class MainActivity extends Activity implements OnClickListener {
         accelBuffer[2] = p.getAccelerometerValue(Accelerometer.Z);
     }
 
-
-    //--------------------------------------
-    // UI Specific methods
-
     /**
      * Initializes the UI of the example application.
      */
@@ -485,38 +531,15 @@ public class MainActivity extends Activity implements OnClickListener {
         disconnectButton.setOnClickListener(this);
         Button pauseButton = (Button) findViewById(R.id.pause);
         pauseButton.setOnClickListener(this);
+        Button plusButton = (Button) findViewById(R.id.buttonplus);
+        plusButton.setOnClickListener(this);
+        Button minusButton = (Button) findViewById(R.id.buttonminus);
+        minusButton.setOnClickListener(this);
 
         spinnerAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item);
         Spinner musesSpinner = (Spinner) findViewById(R.id.muses_spinner);
         musesSpinner.setAdapter(spinnerAdapter);
     }
-
-    /**
-     * The runnable that is used to update the UI at 60Hz.
-     *
-     * We update the UI from this Runnable instead of in packet handlers
-     * because packets come in at high frequency -- 220Hz or more for raw EEG
-     * -- and it only makes sense to update the UI at about 60fps. The update
-     * functions do some string allocation, so this reduces our memory
-     * footprint and makes GC pauses less frequent/noticeable.
-     */
-    private final Runnable tickUi = new Runnable() {
-        @Override
-        public void run() {
-            if (eegStale) {
-                updateEeg();
-                //ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 50);
-                //tg.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 50);
-            }
-            if (accelStale) {
-                updateAccel();
-            }
-            if (alphaStale) {
-                updateAlpha();
-            }
-            handler.postDelayed(tickUi, 1000 / 5);
-        }
-    };
 
     /**
      * The following methods update the TextViews in the UI with the data
@@ -541,19 +564,25 @@ public class MainActivity extends Activity implements OnClickListener {
         fp2.setText(String.format("%6.2f", eegBuffer[2]));
         tp10.setText(String.format("%6.2f", eegBuffer[3]));
 
+        TextView tempoview = (TextView)findViewById(R.id.tempoview);
+        tempoview.setText(String.valueOf(tempo));
+
         if (Math.round(eegBuffer[3]+eegBuffer[2]+eegBuffer[1]+eegBuffer[0])%2!=0){
             ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 288);
-            tg.startTone(ToneGenerator.TONE_DTMF_0, 1000/5);
+            tg.startTone(ToneGenerator.TONE_DTMF_0, 1000/tempo);
             tg.release();
 
         }
         if (Math.round(eegBuffer[3]+eegBuffer[2]+eegBuffer[1]+eegBuffer[0])%2==0){
             ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 288);
-            tg.startTone(ToneGenerator.TONE_DTMF_1, 1000/5);
+            tg.startTone(ToneGenerator.TONE_DTMF_1, 1000/tempo);
             tg.release();
-
         }
     }
+
+
+    //--------------------------------------
+    // File I/O
 
     private void updateAlpha() {
         TextView elem1 = (TextView)findViewById(R.id.elem1);
@@ -565,33 +594,6 @@ public class MainActivity extends Activity implements OnClickListener {
         TextView elem4 = (TextView)findViewById(R.id.elem4);
         elem4.setText(String.format("%6.2f", alphaBuffer[3]));
     }
-
-
-    //--------------------------------------
-    // File I/O
-
-    /**
-     * We don't want to block the UI thread while we write to a file, so the file
-     * writing is moved to a separate thread.
-     */
-    private final Thread fileThread = new Thread() {
-        @Override
-        public void run() {
-            Looper.prepare();
-            fileHandler.set(new Handler());
-            final File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
-            final File file = new File(dir, "new_muse_file.muse" );
-            // MuseFileWriter will append to an existing file.
-            // In this case, we want to start fresh so the file
-            // if it exists.
-            if (file.exists()) {
-                file.delete();
-            }
-            Log.i(TAG, "Writing data to: " + file.getAbsolutePath());
-            fileWriter.set(MuseFileFactory.getMuseFileWriter(file));
-            Looper.loop();
-        }
-    };
 
     /**
      * Writes the provided MuseDataPacket to the file.  MuseFileWriter knows

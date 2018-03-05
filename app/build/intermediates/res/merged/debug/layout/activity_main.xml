@@ -80,7 +80,50 @@
 	        android:textSize="16sp"
 	        android:text="@string/init_val" />
     </LinearLayout>
-    <TextView
+	<TextView
+		android:layout_width="match_parent"
+		android:layout_height="match_parent"
+		android:layout_weight="1"
+		android:textSize="16sp"
+		android:text="Tempo (hertz)"
+		android:id="@+id/tempotext" />
+
+
+	<LinearLayout
+		android:orientation="horizontal"
+		android:layout_width="match_parent"
+		android:layout_height="wrap_content"
+		android:layout_gravity="center|fill_horizontal">
+
+		<Button
+			android:id="@+id/buttonminus"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="  -  "/>
+		<Space
+			android:layout_width="0dp"
+			android:layout_height="0dp"
+			android:layout_weight="1" />
+
+		<TextView
+			android:id="@+id/tempoview"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceLarge"
+			android:text="@string/init_val" />
+		<Space
+			android:layout_width="0dp"
+			android:layout_height="0dp"
+			android:layout_weight="1" />
+
+		<Button
+			android:id="@+id/buttonplus"
+			android:layout_width="wrap_content"
+			android:layout_height="wrap_content"
+			android:text="  +  " />
+	</LinearLayout>
+
+	<TextView
    		android:layout_width="match_parent"
     	android:layout_height="match_parent"
     	android:layout_weight="1"
