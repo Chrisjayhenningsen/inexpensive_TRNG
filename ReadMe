@@ -1,0 +1,1 @@
+This project uses the Muse consumer EEG in order to create pseudorandom or true random binaries. It does this by testing whether the sum of its readouts is even or odd, and providing feedback in the form of one of two tones.
