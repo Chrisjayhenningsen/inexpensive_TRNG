@@ -541,15 +541,15 @@ public class MainActivity extends Activity implements OnClickListener {
         fp2.setText(String.format("%6.2f", eegBuffer[2]));
         tp10.setText(String.format("%6.2f", eegBuffer[3]));
 
-        if (Math.round(eegBuffer[2]+eegBuffer[1])%2!=0){
-            ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 200);
-            tg.startTone(ToneGenerator.TONE_DTMF_0, 200);
+        if (Math.round(eegBuffer[3]+eegBuffer[2]+eegBuffer[1]+eegBuffer[0])%2!=0){
+            ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 288);
+            tg.startTone(ToneGenerator.TONE_DTMF_0, 1000/5);
             tg.release();
 
         }
-        if (Math.round(eegBuffer[2]+eegBuffer[1])%2==0){
-            ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 200);
-            tg.startTone(ToneGenerator.TONE_DTMF_1, 200);
+        if (Math.round(eegBuffer[3]+eegBuffer[2]+eegBuffer[1]+eegBuffer[0])%2==0){
+            ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 288);
+            tg.startTone(ToneGenerator.TONE_DTMF_1, 1000/5);
             tg.release();
 
         }
