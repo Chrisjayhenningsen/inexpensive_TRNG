@@ -7,6 +7,7 @@ package com.choosemuse.example.libmuse;
 
 import java.io.File;
 import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.List;
 
 import java.util.concurrent.atomic.AtomicReference;
@@ -141,6 +142,8 @@ public class MainActivity extends Activity implements OnClickListener {
         }
     };
     int tempo = 6;
+    List<Integer> dancedata = new ArrayList<Integer>();
+
     /**
      * The MuseManager is how you detect Muse headbands and receive notifications
      * when the list of available headbands changes.
@@ -170,8 +173,6 @@ public class MainActivity extends Activity implements OnClickListener {
      */
     private DataListener dataListener;
     private boolean eegStale;
-    private boolean alphaStale;
-    private boolean accelStale;
     /**
      * The runnable that is used to update the UI at 60Hz.
      *
@@ -189,15 +190,17 @@ public class MainActivity extends Activity implements OnClickListener {
                 //ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 50);
                 //tg.startTone(ToneGenerator.TONE_CDMA_ABBR_ALERT, 50);
             }
-            if (accelStale) {
+            /**if (accelStale) {
                 updateAccel();
-            }
-            if (alphaStale) {
+            }*/
+            /*if (alphaStale) {
                 updateAlpha();
-            }
+            }*/
             handler.postDelayed(tickUi, 1000 / tempo);
         }
     };
+    private boolean alphaStale;
+    private boolean accelStale;
 
 
     //--------------------------------------
@@ -545,14 +548,14 @@ public class MainActivity extends Activity implements OnClickListener {
      * The following methods update the TextViews in the UI with the data
      * from the buffers.
      */
-    private void updateAccel() {
+   /** private void updateAccel() {
         TextView acc_x = (TextView)findViewById(R.id.acc_x);
         TextView acc_y = (TextView)findViewById(R.id.acc_y);
         TextView acc_z = (TextView)findViewById(R.id.acc_z);
         acc_x.setText(String.format("%6.2f", accelBuffer[0]));
         acc_y.setText(String.format("%6.2f", accelBuffer[1]));
         acc_z.setText(String.format("%6.2f", accelBuffer[2]));
-    }
+    }*/
 
     private void updateEeg() {
         TextView tp9 = (TextView)findViewById(R.id.eeg_tp9);
@@ -569,14 +572,16 @@ public class MainActivity extends Activity implements OnClickListener {
 
         if (Math.round(eegBuffer[3]+eegBuffer[2]+eegBuffer[1]+eegBuffer[0])%2!=0){
             ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 288);
-            tg.startTone(ToneGenerator.TONE_DTMF_0, 1000/tempo);
+            tg.startTone(ToneGenerator.TONE_DTMF_1, 1000/tempo);
             tg.release();
+            dancedata.add(1);
 
         }
         if (Math.round(eegBuffer[3]+eegBuffer[2]+eegBuffer[1]+eegBuffer[0])%2==0){
             ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 288);
-            tg.startTone(ToneGenerator.TONE_DTMF_1, 1000/tempo);
+            tg.startTone(ToneGenerator.TONE_DTMF_0, 1000/tempo);
             tg.release();
+            dancedata.add(0);
         }
     }
 
@@ -584,7 +589,7 @@ public class MainActivity extends Activity implements OnClickListener {
     //--------------------------------------
     // File I/O
 
-    private void updateAlpha() {
+    /**private void updateAlpha() {
         TextView elem1 = (TextView)findViewById(R.id.elem1);
         elem1.setText(String.format("%6.2f", alphaBuffer[0]));
         TextView elem2 = (TextView)findViewById(R.id.elem2);
@@ -593,7 +598,7 @@ public class MainActivity extends Activity implements OnClickListener {
         elem3.setText(String.format("%6.2f", alphaBuffer[2]));
         TextView elem4 = (TextView)findViewById(R.id.elem4);
         elem4.setText(String.format("%6.2f", alphaBuffer[3]));
-    }
+    }*/
 
     /**
      * Writes the provided MuseDataPacket to the file.  MuseFileWriter knows
