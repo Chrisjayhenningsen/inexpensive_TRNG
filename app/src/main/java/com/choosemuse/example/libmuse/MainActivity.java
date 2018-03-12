@@ -39,6 +39,7 @@ import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.media.AudioManager;
 import android.media.ToneGenerator;
@@ -47,6 +48,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Looper;
 import android.os.Handler;
+import android.text.Html;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -57,6 +59,7 @@ import android.widget.TextView;
 
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
+
 
 /**
  * This example will illustrate how to connect to a Muse headband,
@@ -264,6 +267,16 @@ public class MainActivity extends Activity implements OnClickListener {
         manager.stopListening();
     }
 
+    protected void sendData() {
+        /**CharSequence[] cs = dancedata.toArray(new CharSequence[dancedata.size()]);*/
+        CharSequence cs = dancedata.toString();
+        Intent share_data = new Intent(Intent.ACTION_SEND);
+        share_data.setAction(Intent.ACTION_SEND);
+        share_data.setType("text/csv");
+        share_data.putExtra(Intent.EXTRA_TEXT, cs);
+        startActivity(Intent.createChooser(share_data, cs));
+    }
+
 
     //--------------------------------------
     // Listeners
@@ -340,6 +353,9 @@ public class MainActivity extends Activity implements OnClickListener {
             if(tempo>1) {
                 tempo = tempo - 1;
             }
+        }else if (v.getId() == R.id.send_data) {
+
+            sendData();
         }
     }
 
@@ -538,6 +554,8 @@ public class MainActivity extends Activity implements OnClickListener {
         plusButton.setOnClickListener(this);
         Button minusButton = (Button) findViewById(R.id.buttonminus);
         minusButton.setOnClickListener(this);
+        Button uploadButton = (Button) findViewById(R.id.send_data);
+        uploadButton.setOnClickListener(this);
 
         spinnerAdapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item);
         Spinner musesSpinner = (Spinner) findViewById(R.id.muses_spinner);
@@ -572,7 +590,7 @@ public class MainActivity extends Activity implements OnClickListener {
 
         if (Math.round(eegBuffer[3]+eegBuffer[2]+eegBuffer[1]+eegBuffer[0])%2!=0){
             ToneGenerator tg=new ToneGenerator(AudioManager.STREAM_NOTIFICATION, 288);
-            tg.startTone(ToneGenerator.TONE_DTMF_1, 1000/tempo);
+            tg.startTone(ToneGenerator.TONE_DTMF_1, 1000 / tempo);
             tg.release();
             dancedata.add(1);
 
