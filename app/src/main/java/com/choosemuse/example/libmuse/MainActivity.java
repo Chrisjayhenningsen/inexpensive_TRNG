@@ -38,6 +38,8 @@ import com.choosemuse.libmuse.ResultLevel;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ClipData;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -60,6 +62,7 @@ import android.widget.TextView;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 
+import android.content.ClipboardManager;
 
 /**
  * This example will illustrate how to connect to a Muse headband,
@@ -268,13 +271,18 @@ public class MainActivity extends Activity implements OnClickListener {
     }
 
     protected void sendData() {
-        /**CharSequence[] cs = dancedata.toArray(new CharSequence[dancedata.size()]);*/
         CharSequence cs = dancedata.toString();
+
+        ClipboardManager clipboard = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        ClipData clip = ClipData.newPlainText(cs, cs);
+        clipboard.setPrimaryClip(clip);
         Intent share_data = new Intent(Intent.ACTION_SEND);
         share_data.setAction(Intent.ACTION_SEND);
         share_data.setType("text/csv");
+
         share_data.putExtra(Intent.EXTRA_TEXT, cs);
-        startActivity(Intent.createChooser(share_data, cs));
+        startActivity(share_data);
+
     }
 
 
