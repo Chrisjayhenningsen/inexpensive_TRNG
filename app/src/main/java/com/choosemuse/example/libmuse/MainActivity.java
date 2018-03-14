@@ -284,7 +284,7 @@ public class MainActivity extends Activity implements OnClickListener {
         startActivity(share_data);
 
     }
-
+//sincere thanks for all serendipity
 
     //--------------------------------------
     // Listeners
